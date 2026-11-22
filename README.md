@@ -1,19 +1,33 @@
-This directory includes a few sample datasets to get you started.
+# Early-kinetics prediction of CRP concentration (simulation pilot)
 
-*   `california_housing_data*.csv` is California housing data from the 1990 US
-    Census; more information is available at:
-    https://docs.google.com/document/d/e/2PACX-1vRhYtsvc5eOR2FWNCwaBiKL6suIOrxJig8LcSBbmCbyYsayia_DvPOOBlXZ4CAlQ5nlDD8kTaIDRwrN/pub
+**Question:** can the concentration of an analyte (here CRP) be predicted from only the
+first 90 seconds of a biosensor signal, instead of waiting ~30 minutes for equilibrium?
 
-*   `mnist_*.csv` is a small sample of the
-    [MNIST database](https://en.wikipedia.org/wiki/MNIST_database), which is
-    described at: http://yann.lecun.com/exdb/mnist/
+**Status:** exploratory simulation / proof of concept. This is *not* validated on real sensors.
 
-*   `anscombe.json` contains a copy of
-    [Anscombe's quartet](https://en.wikipedia.org/wiki/Anscombe%27s_quartet); it
-    was originally described in
+## What the code does
+1. Simulates 1:1 binding curves, S(t) = S_eq (1 - exp(-k_obs t)), with k_obs = k_on[C] + k_off.
+2. Adds sensor noise, baseline drift and small sample-to-sample variation in k_on.
+3. Extracts features from the first 90 s: initial slope, curvature, baseline drift.
+4. Trains a random forest to predict log10(concentration).
+5. Tests on (a) clean held-out curves and (b) "viscous" samples where binding is 20-40% slower
+   (never seen in training).
 
-    Anscombe, F. J. (1973). 'Graphs in Statistical Analysis'. American
-    Statistician. 27 (1): 17-21. JSTOR 2682899.
+## Results (my run)
+| Condition | Mean error | Median error |
+|---|---|---|
+| Clean, first 90 s | 6.9% | 4.8% |
+| Viscous samples | 24.0% | 24.5% |
 
-    and our copy was prepared by the
-    [vega_datasets library](https://github.com/altair-viz/vega_datasets/blob/4f67bdaad10f45e3549984e17e1b3088c731503d/vega_datasets/_data/anscombe.json).
+Error vs time window (clean): 30 s -> 10.3%, 60 s -> 6.8%, 90 s -> 6.6%
+
+![results](results.png)
+
+## Main finding
+Early features predict concentration well under clean conditions, but accuracy drops when
+sample viscosity changes, because the model reads slower binding as lower concentration.
+This matrix-effect problem is exactly what I want to study.
+
+## Limitations
+- Simulated data only; real sensors have effects not modelled here (fouling, mass-transport
+  limits,
